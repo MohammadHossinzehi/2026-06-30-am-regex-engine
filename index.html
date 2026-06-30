@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Regex Engine From Scratch</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --accent: #58a6ff;
+    --match: #2ea04388;
+    --error: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 2rem;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 0.25rem;
+  }
+  p.subtitle {
+    color: #8b949e;
+    margin-top: 0;
+    margin-bottom: 2rem;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: #8b949e;
+    margin-bottom: 0.3rem;
+    margin-top: 1.2rem;
+  }
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.6rem 0.8rem;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.95rem;
+  }
+  textarea {
+    min-height: 90px;
+    resize: vertical;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1.2rem;
+    min-height: 2rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  .status {
+    margin-top: 1.2rem;
+    font-size: 0.9rem;
+  }
+  .status.ok { color: #3fb950; }
+  .status.err { color: var(--error); }
+  mark {
+    background: var(--match);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+  .examples {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #8b949e;
+  }
+  .examples button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    border-radius: 12px;
+    padding: 2px 10px;
+    margin: 2px 4px 2px 0;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .examples button:hover {
+    border-color: var(--accent);
+  }
+  footer {
+    margin-top: 2.5rem;
+    font-size: 0.8rem;
+    color: #6e7681;
+  }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Regex Engine From Scratch</h1>
+  <p class="subtitle">
+    Pattern matching here does not use the browser's native RegExp object.
+    Every keystroke below is parsed into an AST, compiled into an NFA via
+    Thompson's construction, and matched by simulating the NFA over your
+    text. See <code>src/regex-engine.js</code> for the implementation.
+  </p>
+
+  <label for="pattern">Pattern</label>
+  <input type="text" id="pattern" value="\d+@\w+\.com" />
+
+  <div class="examples">
+    Try:
+    <button data-pattern="a(b|c)*d">a(b|c)*d</button>
+    <button data-pattern="colou?r">colou?r</button>
+    <button data-pattern="[A-Za-z]+">[A-Za-z]+</button>
+    <button data-pattern="\d+@\w+\.com">\d+@\w+\.com</button>
+  </div>
+
+  <label for="text">Test string</label>
+  <textarea id="text">Contact user123@example.com or admin@test.com for help.</textarea>
+
+  <div class="status" id="status"></div>
+  <label>Matches (highlighted)</label>
+  <div class="panel" id="output"></div>
+</main>
+
+<script src="src/regex-engine.js"></script>
+<script>
+  const patternInput = document.getElementById('pattern');
+  const textInput = document.getElementById('text');
+  const statusEl = document.getElementById('status');
+  const outputEl = document.getElementById('output');
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  }
+
+  function render() {
+    const pattern = patternInput.value;
+    const text = textInput.value;
+    if (pattern === '') {
+      statusEl.textContent = '';
+      outputEl.innerHTML = escapeHtml(text);
+      return;
+    }
+    try {
+      const engine = new RegexEngineLib.RegexEngine(pattern);
+      const matches = engine.findAll(text);
+      statusEl.className = 'status ok';
+      statusEl.textContent = `${matches.length} match${matches.length === 1 ? '' : 'es'} found`;
+
+      let html = '';
+      let cursor = 0;
+      for (const m of matches) {
+        html += escapeHtml(text.slice(cursor, m.start));
+        html += `<mark>${escapeHtml(m.text)}</mark>`;
+        cursor = m.end;
+      }
+      html += escapeHtml(text.slice(cursor));
+      outputEl.innerHTML = html || '<em>(empty)</em>';
+    } catch (err) {
+      statusEl.className = 'status err';
+      statusEl.textContent = `Pattern error: ${err.message}`;
+      outputEl.innerHTML = escapeHtml(text);
+    }
+  }
+
+  patternInput.addEventListener('input', render);
+  textInput.addEventListener('input', render);
+  document.querySelectorAll('.examples button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      patternInput.value = btn.dataset.pattern;
+      render();
+    });
+  });
+
+  render();
+</script>
+
+<footer>
+  Built from scratch &middot; no native RegExp used in the matching path &middot;
+  <a href="https://github.com/MohammadHossinzehi/2026-06-30-am-regex-engine">source</a>
+</footer>
+</body>
+</html>
