@@ -1,0 +1,13 @@
+{
+  "name": "regex-engine-from-scratch",
+  "version": "1.0.0",
+  "description": "A regular expression engine built from scratch using Thompson's NFA construction, with a browser based pattern tester.",
+  "main": "src/regex-engine.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
